@@ -313,6 +313,7 @@ public class Opcodes {
             .category(CATEGORY_ITEMS)
             .parameter(ParameterDescription.builder().name("item1").type(PAR_ITEM).description("first item").build())
             .parameter(ParameterDescription.builder().name("item2").type(PAR_ITEM).description("second item").build())
+            .parameter(ParameterDescription.builder().name("count").type(PAR_BOOLEAN).description("check item count").build())
             .parameter(ParameterDescription.builder().name("meta").type(PAR_BOOLEAN).optional().description("check meta").build())
             .parameter(ParameterDescription.builder().name("nbt").type(PAR_BOOLEAN).optional().description("check nbt").build())
             .parameter(ParameterDescription.builder().name("oredict").type(PAR_BOOLEAN).optional().description("use oredictionary").build())
@@ -320,10 +321,11 @@ public class Opcodes {
             .runnable(((processor, program, opcode) -> {
                 ItemStack item1 = processor.evaluateItemParameter(opcode, program, 0);
                 ItemStack item2 = processor.evaluateItemParameter(opcode, program, 1);
-                boolean meta = processor.evaluateBoolParameter(opcode, program, 2);
-                boolean nbt = processor.evaluateBoolParameter(opcode, program, 3);
-                boolean oredict = processor.evaluateBoolParameter(opcode, program, 4);
-                return InventoryTools.areItemsEqual(item1, item2, meta, nbt, oredict, false) ? POSITIVE : NEGATIVE;
+                boolean count = processor.evaluateBoolParameter(opcode, program, 2);
+                boolean meta = processor.evaluateBoolParameter(opcode, program, 3);
+                boolean nbt = processor.evaluateBoolParameter(opcode, program, 4);
+                boolean oredict = processor.evaluateBoolParameter(opcode, program, 5);
+                return InventoryTools.areItemsEqual(item1, item2, meta, nbt, oredict, count) ? POSITIVE : NEGATIVE;
             }))
             .build();
 

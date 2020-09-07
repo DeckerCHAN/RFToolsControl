@@ -78,6 +78,8 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.wrapper.InvWrapper;
 import net.minecraftforge.items.wrapper.SidedInvWrapper;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -635,7 +637,7 @@ public class ProcessorTileEntity extends GenericEnergyReceiverTileEntity impleme
         if (card.isEmpty()) {
             throw new ProgException(EXCEPT_MISSINGCRAFTINGCARD);
         }
-        CardInfo info = this.cardInfo[((RunningProgram)program).getCardIndex()];
+        CardInfo info = this.cardInfo[((RunningProgram) program).getCardIndex()];
 
         List<ItemStack> ingredients;
         if (CraftingCardItem.fitsGrid(card) && (slot2 - slot1 >= 8)) {
@@ -658,9 +660,14 @@ public class ProcessorTileEntity extends GenericEnergyReceiverTileEntity impleme
         for (ItemStack ingredient : ingredients) {
             int realSlot = info.getRealSlot(slot);
             if (!ingredient.isEmpty()) {
+
+                LogManager.getLogger().log(Level.INFO, "trying get "+ ingredient.getDisplayName() +" with NBT " + (ingredient.getTagCompound() != null ? ingredient.getTagCompound().toString() : "EMPTY NBT"));
                 ItemStack stack = InventoryTools.extractItem(handler, scanner, ingredient.getCount(), true, oredict, strictnbt, ingredient, null);
+
                 if (!stack.isEmpty()) {
                     itemHandler.insertItem(realSlot, stack, false);
+                } else {
+                    LogManager.getLogger().log(Level.ERROR, "This should not happen");
                 }
             }
             slot++;
