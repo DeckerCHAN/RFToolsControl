@@ -9,6 +9,7 @@ import mcjty.lib.typed.Type;
 import mcjty.lib.typed.TypedMap;
 import mcjty.lib.varia.BlockPosTools;
 import mcjty.lib.varia.EnergyTools;
+import mcjty.lib.varia.Logging;
 import mcjty.lib.varia.WorldTools;
 import mcjty.rftools.api.storage.IStorageScanner;
 import mcjty.rftoolscontrol.api.code.Function;
@@ -78,8 +79,6 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.wrapper.InvWrapper;
 import net.minecraftforge.items.wrapper.SidedInvWrapper;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -661,14 +660,21 @@ public class ProcessorTileEntity extends GenericEnergyReceiverTileEntity impleme
             int realSlot = info.getRealSlot(slot);
             if (!ingredient.isEmpty()) {
 
-                LogManager.getLogger().log(Level.INFO, "trying get "+ ingredient.getDisplayName() +" with NBT " + (ingredient.getTagCompound() != null ? ingredient.getTagCompound().toString() : "EMPTY NBT"));
+
                 ItemStack stack = InventoryTools.extractItem(handler, scanner, ingredient.getCount(), true, oredict, strictnbt, ingredient, null);
 
-                if (!stack.isEmpty()) {
-                    itemHandler.insertItem(realSlot, stack, false);
-                } else {
-                    LogManager.getLogger().log(Level.ERROR, "This should not happen");
+                if (stack.isEmpty()) {
+                    Logging.logError("Ingredients extraction failed to extract anything.");
+                    continue;
                 }
+
+                if (stack.getCount() != ingredient.getCount()) {
+                    Logging.logError("Ingredients extraction can not extract all items. "
+                            + String.format("Looking for %dx%s", ingredient.getCount(), ingredient.getDisplayName())
+                            + String.format(" But got %dx%s", stack.getCount(), stack.getDisplayName()));
+                }
+
+                itemHandler.insertItem(realSlot, stack, false);
             }
             slot++;
         }
@@ -1780,7 +1786,7 @@ public class ProcessorTileEntity extends GenericEnergyReceiverTileEntity impleme
         CardInfo info = this.cardInfo[((RunningProgram)program).getCardIndex()];
         int realSlot = info.getRealSlot(virtualSlot);
 
-        ItemStack stack = InventoryTools.tryExtractItem(handler, scanner, amount, routable, oredict, itemMatcher, slot);
+        ItemStack stack = InventoryTools.tryExtractItem(handler, scanner, amount, routable, oredict,false, itemMatcher, slot);
         if (stack.isEmpty()) {
             // Nothing to do
             return 0;

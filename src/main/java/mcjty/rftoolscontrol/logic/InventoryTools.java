@@ -12,12 +12,10 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.HashSet;
-import java.util.Set;
 
 public class InventoryTools {
 
-    public static int countItem(@Nullable IItemHandler itemHandler, @Nullable IStorageScanner scanner, ItemStack itemMatcher,boolean meta, boolean nbt, boolean oredict, int maxToCount) {
+    public static int countItem(@Nullable IItemHandler itemHandler, @Nullable IStorageScanner scanner, ItemStack itemMatcher, boolean meta, boolean nbt, boolean oredict, int maxToCount) {
         if (itemHandler != null) {
             int cnt = 0;
             for (int i = 0; i < itemHandler.getSlots(); i++) {
@@ -43,8 +41,8 @@ public class InventoryTools {
     public static boolean areItemsEqual(ItemStack item1, ItemStack item2,
                                         boolean meta, boolean nbt,
                                         boolean oredict, boolean count) {
-        if(count){
-            if(item1.getCount() != item2.getCount()){
+        if (count) {
+            if (item1.getCount() != item2.getCount()) {
                 return false;
             }
         }
@@ -67,37 +65,60 @@ public class InventoryTools {
     }
 
 
+    private static ItemStack extractItemFromAllSlot(IItemHandler itemHandler, ItemStack item, int amount, boolean doExtract) {
+        ItemStack resItemStack = null;
+
+        for (int i = 0; i < itemHandler.getSlots(); i++) {
+            ItemStack stack = itemHandler.getStackInSlot(i).copy();
+            if (areItemsEqual(item, stack,true, true, true , false)) {
+
+                if (resItemStack == null) {
+                    resItemStack = itemHandler.extractItem(i, amount, !doExtract);
+                } else {
+                    ItemStack extracted = itemHandler.extractItem(i, amount - resItemStack.getCount(), !doExtract);
+                    resItemStack.setCount(resItemStack.getCount() + extracted.getCount());
+                }
+
+                if (amount == resItemStack.getCount() ) {
+                    break;
+                }
+            }
+        }
+        return resItemStack;
+    }
 
     public static ItemStack extractItem(@Nullable IItemHandler itemHandler, @Nullable IStorageScanner scanner,
                                         @Nullable Integer amount, boolean routable, boolean oredict, boolean strictnbt, ItemStack itemMatcher,
                                         @Nullable Integer slot) {
         if (itemHandler != null) {
             // @todo implement oredict here
-            if (slot == null) {
-                if (itemMatcher.isEmpty()) {
+            if (slot != null) {
+                if (!itemMatcher.isEmpty()) {
+                    if (!areItemsEqual(itemMatcher, itemHandler.getStackInSlot(slot), true, strictnbt, oredict, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                    return itemHandler.extractItem(slot, amount == null ? itemMatcher.getMaxStackSize() : amount, false);
+                } else {
+                    return itemHandler.extractItem(slot, amount == null ? 64 : amount, false);
+                }
+            } else {
+                if (!itemMatcher.isEmpty()) {
+                    for (int i = 0; i < itemHandler.getSlots(); i++) {
+                        ItemStack stack = itemHandler.getStackInSlot(i).copy();
+                        int amountTodo = amount == null ? stack.getMaxStackSize() : amount;
+                        if (areItemsEqual(itemMatcher, stack, true, strictnbt, oredict, false)
+                                && extractItemFromAllSlot(itemHandler, stack, amountTodo, false).getCount() >= amountTodo) {
+                            return extractItemFromAllSlot(itemHandler, stack, amountTodo, true);
+                        }
+                    }
+                } else {
                     // Just find the first available stack
-                    for (int i = 0 ; i < itemHandler.getSlots() ; i++) {
+                    for (int i = 0; i < itemHandler.getSlots(); i++) {
                         ItemStack stack = itemHandler.getStackInSlot(i);
                         if (!stack.isEmpty() && (amount == null || amount <= stack.getCount())) {
                             return itemHandler.extractItem(i, amount == null ? 64 : amount, false);
                         }
                     }
-                } else {
-                    for (int i = 0; i < itemHandler.getSlots(); i++) {
-                        ItemStack stack = itemHandler.getStackInSlot(i);
-                        if (areItemsEqual(itemMatcher, stack, true, strictnbt, oredict, false)) {
-                            return itemHandler.extractItem(i, amount == null ? itemMatcher.getMaxStackSize() : amount, false);
-                        }
-                    }
-                }
-            } else {
-                if (itemMatcher.isEmpty()) {
-                    return itemHandler.extractItem(slot, amount == null ? 64 : amount, false);
-                } else {
-                    if (!areItemsEqual(itemMatcher, itemHandler.getStackInSlot(slot),  true, strictnbt, oredict, false)) {
-                        return ItemStack.EMPTY;
-                    }
-                    return itemHandler.extractItem(slot, amount == null ? itemMatcher.getMaxStackSize() : amount, false);
                 }
             }
         } else if (scanner != null) {
@@ -108,36 +129,39 @@ public class InventoryTools {
 
 
     public static ItemStack tryExtractItem(@Nullable IItemHandler itemHandler, @Nullable IStorageScanner scanner,
-                                           @Nullable Integer amount, boolean routable, boolean oredict,
+                                           @Nullable Integer amount, boolean routable, boolean oredict, boolean strictnbt,
                                            ItemStack itemMatcher,
                                            @Nullable Integer slot) {
 
         if (itemHandler != null) {
-            if (slot == null) {
-                if (itemMatcher.isEmpty()) {
+            if (slot != null) {
+                if (!itemMatcher.isEmpty()) {
+                    if (!areItemsEqual(itemMatcher, itemHandler.getStackInSlot(slot), true, strictnbt, oredict, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                    return itemHandler.extractItem(slot, amount == null ? itemMatcher.getMaxStackSize() : amount, true);
+                } else {
+                    return itemHandler.extractItem(slot, amount == null ? 64 : amount, true);
+                }
+            } else {
+                if (!itemMatcher.isEmpty()) {
+                    for (int i = 0; i < itemHandler.getSlots(); i++) {
+                        ItemStack stack = itemHandler.getStackInSlot(i);
+                        int amountTodo = amount == null ? stack.getMaxStackSize() : amount;
+
+                        if (areItemsEqual(itemMatcher, stack, true, strictnbt, oredict, false)
+                                && extractItemFromAllSlot(itemHandler, stack, amountTodo, false).getCount() >= amountTodo) {
+                            return extractItemFromAllSlot(itemHandler, stack, amountTodo, false);
+                        }
+                    }
+                } else {
                     // Just find the first available stack
-                    for (int i = 0 ; i < itemHandler.getSlots() ; i++) {
+                    for (int i = 0; i < itemHandler.getSlots(); i++) {
                         ItemStack stack = itemHandler.getStackInSlot(i);
                         if (!stack.isEmpty() && (amount == null || amount <= stack.getCount())) {
                             return itemHandler.extractItem(i, amount == null ? 64 : amount, true);
                         }
                     }
-                } else {
-                    for (int i = 0; i < itemHandler.getSlots(); i++) {
-                        ItemStack stack = itemHandler.getStackInSlot(i);
-                        if (!stack.isEmpty() && ItemStack.areItemsEqual(stack, itemMatcher)) {
-                            return itemHandler.extractItem(i, amount == null ? itemMatcher.getMaxStackSize() : amount, true);
-                        }
-                    }
-                }
-            } else {
-                if (itemMatcher.isEmpty()) {
-                    return itemHandler.extractItem(slot, amount == null ? 64 : amount, true);
-                } else {
-                    if (!ItemStack.areItemsEqual(itemMatcher, itemHandler.getStackInSlot(slot))) {
-                        return ItemStack.EMPTY;
-                    }
-                    return itemHandler.extractItem(slot, amount == null ? itemMatcher.getMaxStackSize() : amount, true);
                 }
             }
         }
@@ -158,7 +182,7 @@ public class InventoryTools {
     }
 
     public static ItemStack insertItem(@Nullable IItemHandler itemHandler, @Nullable IStorageScanner scanner, @Nonnull ItemStack item,
-                                        @Nullable Integer slot) {
+                                       @Nullable Integer slot) {
         if (itemHandler != null) {
             if (slot == null) {
                 return ItemHandlerHelper.insertItem(itemHandler, item, false);
@@ -206,15 +230,15 @@ public class InventoryTools {
         if (indexOf == -1) {
             return null;
         }
-        if (s.length() <= indexOf+1) {
+        if (s.length() <= indexOf + 1) {
             return null;
         }
-        EnumFacing side = getSideFromChar(s.charAt(indexOf-1));
+        EnumFacing side = getSideFromChar(s.charAt(indexOf - 1));
         if (side == null) {
             // Side == null is invalid for Inventory
             return null;
         }
-        EnumFacing intSide = getSideFromChar(s.charAt(indexOf+1));
+        EnumFacing intSide = getSideFromChar(s.charAt(indexOf + 1));
 
         int indexSpace = s.lastIndexOf(' ');
         if (indexSpace <= 0) {
@@ -226,13 +250,20 @@ public class InventoryTools {
 
     public static EnumFacing getSideFromChar(char is) {
         switch (is) {
-            case '*': return null;
-            case 'D': return EnumFacing.DOWN;
-            case 'U': return EnumFacing.UP;
-            case 'W': return EnumFacing.WEST;
-            case 'E': return EnumFacing.EAST;
-            case 'S': return EnumFacing.SOUTH;
-            case 'N': return EnumFacing.NORTH;
+            case '*':
+                return null;
+            case 'D':
+                return EnumFacing.DOWN;
+            case 'U':
+                return EnumFacing.UP;
+            case 'W':
+                return EnumFacing.WEST;
+            case 'E':
+                return EnumFacing.EAST;
+            case 'S':
+                return EnumFacing.SOUTH;
+            case 'N':
+                return EnumFacing.NORTH;
         }
         return null;
     }
@@ -259,7 +290,7 @@ public class InventoryTools {
         if (s.isEmpty()) {
             return null;
         }
-        EnumFacing side = getSideFromChar(s.charAt(s.length()-1));
+        EnumFacing side = getSideFromChar(s.charAt(s.length() - 1));
         int indexOf = s.lastIndexOf(' ');
         if (indexOf <= 0) {
             return new BlockSide(null, side);
